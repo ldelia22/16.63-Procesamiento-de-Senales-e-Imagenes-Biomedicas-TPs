@@ -157,21 +157,19 @@ el hospital que generó la base de datos que usaremos, $\kappa = 0{,}74$
 profundiza, el EEG pasa de una actividad rápida y de baja amplitud en
 vigilia (ritmos $\alpha$, 8--13~Hz, y $\beta$, 13--30~Hz) a ondas lentas
 de gran amplitud en N3 (ritmo $\delta$, 0,5--4~Hz). En N2 aparecen
-además los husos de sueño, ráfagas de 11 a 16~Hz que duran entre 0,5 y
+además los husos de sueño, que son ráfagas de 11 a 16~Hz que duran entre 0,5 y
 2~s. El sueño REM tiene un EEG parecido al de N1, por lo que se
 reconoce con otras dos señales: los movimientos oculares rápidos, que se
 ven en el EOG, y la pérdida de tono muscular, que se ve en el EMG del
-mentón. El corazón también cambia con el estadio: la variabilidad de la
-frecuencia cardíaca (HRV), es decir, cuánto varía el tiempo entre
-latidos, depende del sistema nervioso autónomo, que pasa a un predominio
-parasimpático en el sueño profundo y se vuelve más simpático en REM
-\cite{trinder}.
+mentón. El corazón también cambia con el estadio, ya que la variabilidad de la
+frecuencia cardíaca (HRV) depende del sistema nervioso autónomo, que pasa a un predominio
+parasimpático en el sueño profundo y a uno simpático en REM \cite{trinder}.
 
-\textbf{Artefactos.} Los movimientos de los ojos producen en los
-electrodos frontales ondas lentas y grandes que pueden confundirse con
+\textbf{Artefactos.} Los movimientos de los ojos producen ondas lentas y grandes en los
+electrodos frontales que pueden confundirse con
 sueño profundo, y la actividad del corazón aparece en el EEG como un
 pulso que se repite en cada latido. Ambos ocupan las mismas frecuencias
-que los ritmos de interés, por lo que un pasa-banda no puede quitarlos
+que los ritmos de interés, por lo que un pasa-banda no puede filtrarlos
 sin quitar también información útil.
 
 \subsection{Estado del arte}
@@ -182,27 +180,25 @@ del EEG en cada banda de frecuencia, y se los entrega a un
 clasificador; un ejemplo es YASA \cite{yasa}, que con este enfoque logra
 un acuerdo comparable al de los técnicos. La segunda usa redes
 neuronales profundas que reciben la señal cruda y aprenden solas qué
-patrones usar: suelen rendir algo mejor, pero no permiten saber en qué
+patrones usar; suelen rendir algo mejor, pero no permiten saber en qué
 se basa cada decisión. El artículo propuesto por la cátedra
-\cite{alvarez} pertenece a esta familia: una red convolucional y
-recurrente que, sobre registros de HMC no usados para entrenarla,
-alcanza $\kappa = 0{,}79$.
+\cite{alvarez} pertenece a esta familia, es una red convolucional y
+recurrente que alcanzó $\kappa = 0{,}79$ sobre los datos de testeo.
 
 Nuestro trabajo pertenece a la primera familia, porque permite explicar
 cada decisión a partir de propiedades medibles de las señales. Además de
-las técnicas vistas en clase, incorporamos tres que no se vieron, cada
-una para resolver un problema concreto: la estimación espectral
+las técnicas vistas en clase, incorporamos tres nuevas: la estimación espectral
 \emph{multitaper} \cite{thomson,prerau}, para obtener espectros menos
 ruidosos de cada época; el promediado de Woody \cite{woody}, para
 estimar la forma de las ondas lentas aunque no estén bien alineadas; y
-los patrones espaciales comunes (CSP) \cite{ramoser}, para combinar los
-cuatro canales de EEG de la forma que mejor separe los estadios que más
+los patrones espaciales comunes (CSP) \cite{ramoser}, que entra dentro del análisis
+espacial y nos permite combinar los cuatro canales de EEG de la forma que mejor separe los estadios que más
 se confunden.
 
 \subsection{Objetivos e hipótesis}
 
 \textbf{Objetivo general.} Desarrollar un algoritmo que clasifique cada
-época de una PSG en uno de los cinco estadios, con decisiones
+época de una PSG en uno de los cinco estadios del sueño, con decisiones
 explicables a partir de las señales, que alcance un acuerdo con
 los técnicos cercano al que tienen los técnicos entre sí
 ($\kappa \approx 0{,}74$), junto con una interfaz gráfica que muestre
@@ -222,8 +218,8 @@ y agregar la HRV mejora el acuerdo con los técnicos.
 
 \subsection{Base de datos}
 
-Usaremos la \textbf{HMC Sleep Staging Database v1.1} \cite{hmc}
-(Opción 2 de la consigna): 148 PSG de adultos derivados al centro por
+Usaremos la base de datos \textbf{HMC Sleep Staging Database v1.1} \cite{hmc}
+(opción 2 de la consigna). Contiene 148 PSG de adultos derivados al centro por
 distintos trastornos del sueño, registradas con equipos SOMNOmedics y
 electrodos de Ag/AgCl a 256~Hz, en formato EDF.
 Cada registro tiene cuatro canales de EEG (F4, C4, O2 y C3, referidos a
@@ -232,45 +228,36 @@ anotado por técnicos según el manual AASM vigente. La elegimos porque
 tiene los cuatro EEG que necesita CSP, el EOG que sirve de referencia
 del artefacto ocular y el ECG para detectar los latidos.
 
-Para acotar el costo computacional trabajaremos con 60 a 80 registros
-elegidos al azar, separados en entrenamiento (80\,\%) y prueba (20\,\%)
-\textbf{por paciente}: todas las épocas de un paciente quedan del mismo
-lado. Si se mezclaran, el algoritmo se evaluaría sobre épocas casi
-iguales a las que vio al entrenar y el resultado sería optimista.
+Comenzaremos trabajando con 60 a 80 registros elegidos al azar para reducir el costo computacional,
+y separaremos la totalidad de datos entre entrenamiento (80\,\%) y prueba (20\,\%),
+obligando a que todas las épocas de un paciente quedan del mismo
+lado para que no se mezclen los mismos registros en los datos de testing y de validación.
 
 \subsection{Metodología}
 
-Las etapas 1 a 5 preparan la señal, las 6 a 9 calculan descriptores
-de cada época y la 10 clasifica.
-
 \begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=1.6em, itemsep=6pt, topsep=4pt]
 \item \textbf{Análisis exploratorio.} Espectro de cada canal por
-  estadio y verificación de artefactos: correlación entre EEG frontal y
+  estadio y verificación de artefactos, entre ellos, correlación entre EEG frontal y
   EOG para el ocular, y promedio del EEG alrededor de cada latido para
-  el cardíaco (si aparece una forma repetible, hay artefacto). Decide si
-  se aplican las etapas 3 y 4.
+  el cardíaco (si aparece una forma repetible, hay artefacto).
 
-\item \textbf{Filtrado convencional.} Un pasa-altos en 0,5~Hz elimina la
+\item \textbf{Filtrado convencional.} Un pasa-altos en 0,5~Hz para eliminar la
   deriva lenta de la línea de base (por sudoración o respiración) y un
-  notch en 50~Hz elimina la interferencia de la red eléctrica de Países
-  Bajos; la frecuencia de corte superior se fijará a partir del espectro
-  de la etapa 1. Compararemos un diseño FIR y uno IIR: el IIR necesita un
+  notch en 50~Hz para eliminar la interferencia de la red eléctrica de Países
+  Bajos, que es el país donde se tomaron los datos; la frecuencia de corte superior se fijará a partir del espectro
+  de la etapa 1. Compararemos un diseño FIR y uno IIR. El IIR necesita un
   orden mucho menor, pero desplaza de forma distinta cada frecuencia y
-  deforma las ondas lentas. Para evitarlo se lo aplica dos veces, una
-  hacia adelante y otra hacia atrás, de modo que el segundo pasaje
-  compensa el desfase del primero.
+  deforma las ondas lentas (que se soluciona aplicandolo dos veces, una
+  hacia adelante y otra hacia atrás, de modo que se compensen los desfasajes).
 
 \item \textbf{Remoción del artefacto ocular.} Usamos el EOG como copia
-  del artefacto: un filtro adaptativo (NLMS) aprende, muestra a muestra,
-  qué parte del EOG aparece en cada canal de EEG y la resta
-  \cite{widrow,he}. Se usa la diferencia entre los dos canales de EOG,
+  del artefacto y diseñamos un filtro adaptativo que reste la parte del
+  EOG que aparece en cada canal de EEG. Se usa la diferencia entre los dos canales de EOG,
   porque en ella los movimientos oculares se refuerzan y la actividad
-  cerebral, que llega igual a ambos, se cancela. El reajuste continuo
-  es necesario porque el EOG cambia mucho durante la noche; se lo
-  comparará con el filtro de Wiener, que calcula una corrección fija.
+  cerebral, que llega igual a ambos, se cancela. Se lo comparará con el filtro de Wiener, que calcula una corrección fija.
 
 \item \textbf{Remoción del artefacto cardíaco.} Con el algoritmo de
-  Pan-Tompkins \cite{pantompkins} se detecta cada latido en el ECG. El
+  Pan-Tompkins se detecta cada latido en el ECG. El
   artefacto tiene la misma forma en cada latido, mientras que el EEG no
   está sincronizado con el corazón; por eso, al promediar el EEG
   alrededor de los últimos 30 latidos el EEG se cancela y queda la forma
@@ -278,32 +265,31 @@ de cada época y la 10 clasifica.
   latidos se reutilizan para la HRV.
 
 \item \textbf{Segmentación.} Épocas de 30~s, dentro de las cuales se
-  supone que la señal no cambia sus propiedades. La segmentación
-  adaptativa con modelo autorregresivo vista en clase marca las épocas
+  supone que la señal no cambia sus propiedades. Con una segmentación
+  adaptativa con un modelo autorregresivo se puede marcar las épocas
   donde eso no se cumple (por ejemplo, por un despertar breve).
 
 \item \textbf{Espectro multitaper.} El periodograma de cada época es muy
   ruidoso. El método de Welch visto en clase lo suaviza partiendo la
   época en trozos y promediando sus espectros, pero cada trozo es más
   corto y se pierde resolución en frecuencia. El método multitaper
-  \cite{thomson,prerau} usa la época completa, la multiplica por varias
+  usa la época completa, la multiplica por varias
   ventanas distintas e independientes entre sí y promedia los espectros
-  resultantes: reduce el ruido sin acortar la señal. Con épocas de 30~s
-  y 1~Hz de resolución se usan 29 ventanas. De cada espectro se obtiene
+  resultantes, reduciendo el ruido sin acortar la señal. De cada espectro se obtiene
   la potencia absoluta y relativa en cada banda, cocientes entre bandas
   y la pendiente con que decae el espectro hacia frecuencias altas, que
-  cambia con la profundidad del sueño \cite{donoghue}. 
+  cambia con la profundidad del sueño.
 
 \item \textbf{Husos y ondas lentas con promediado de Woody.} Los husos se
   detectan filtrando el EEG central entre 11 y 16~Hz, calculando su
   envolvente y buscando tramos de 0,5 a 2~s que superen un umbral
-  relativo al propio registro \cite{molle}. Las ondas lentas se detectan
-  en el EEG frontal con el criterio visto en clase \cite{piantoni}:
+  relativo al propio registro. Las ondas lentas se detectan
+  en el EEG frontal con el criterio visto en clase:
   filtrado entre 0,2 y 4~Hz, pico negativo menor a $-60~\mu$V y amplitud
-  pico a pico de al menos 75~$\mu$V. Para estimar la forma típica de las
+  pico a pico mayor a 75~$\mu$V. Para estimar la forma típica de las
   ondas lentas de cada paciente se las promedia, pero el ruido corre el
-  pico detectado de cada una y el promedio de ondas desalineadas resulta
-  más ancho y más chico que la onda real. El método de Woody
+  pico detectado de cada una y el promedio resulta
+  más ancho y chico que la onda real. El método de Woody
   \cite{woody} corrige esto de forma iterativa: desplaza cada onda
   hasta que se parezca lo más posible al promedio, recalcula el promedio
   con las ondas alineadas y repite hasta que los desplazamientos dejan de
@@ -314,35 +300,24 @@ de cada época y la 10 clasifica.
   por separado. CSP \cite{ramoser} busca una suma ponderada de los cuatro
   canales de EEG cuya potencia sea lo más grande posible en un estadio y
   lo más chica posible en otro. Se aplicará a los pares más confundidos
-  (por ejemplo, N1 y REM). El descriptor es la
-  potencia de la señal combinada, y los pesos de cada canal muestran qué
-  región del cerebro distingue a los dos estadios.
+  (por ejemplo, N1 y REM).
 
 \item \textbf{EOG, EMG y HRV.} Del EOG se toma su energía, que crece con
   los movimientos oculares de REM, y del EMG su amplitud, que cae con la
   atonía. Para la HRV se arma, con los latidos de la etapa 4, la serie de
-  intervalos entre latidos, descartando los latidos ectópicos (latidos
-  anómalos, reconocibles porque su forma se parece poco a la del latido
-  promedio). Como estos intervalos no están equiespaciados en el tiempo,
-  su espectro se calcula con el periodograma de Lomb, que trabaja
-  directamente sobre muestras irregulares \cite{lomb}. En una ventana de
-  5~min centrada en cada época se mide la potencia en baja frecuencia
+  intervalos entre latidos, descartando los latidos ectópicos.
+  En una ventana de 5~min centrada en cada época se mide la potencia en baja frecuencia
   (LF, 0,04--0,15~Hz) y en alta frecuencia (HF, 0,15--0,4~Hz): HF
   refleja la actividad parasimpática y aumenta en sueño profundo,
   mientras que el cociente LF/HF aumenta en REM \cite{taskforce}.
-  Los descriptores se estandarizan dentro de cada registro.
 
 \item \textbf{Clasificación.} Usaremos análisis discriminante lineal
   (LDA), que asigna cada época al estadio cuyo perfil de descriptores es
   más parecido. Al ser lineal, el peso de cada descriptor en la decisión
   se puede leer directamente. El clasificador decide cada época por
-  separado, pero el hipnograma tiene continuidad y no todas las transiciones son
-  igual de probables. Por eso se cuentan las transiciones en
-  entrenamiento y, con
-  un modelo oculto de Markov y el algoritmo de Viterbi \cite{rabiner}, se
-  elige la secuencia de toda la noche que mejor combina lo que dice el
-  clasificador con esas transiciones; así se corrigen, por ejemplo,
-  épocas de REM aisladas en medio de N3.
+  separado, pero el hipnograma es un continuo, y podría ser que asigne épocas
+  que pertenezcan a distintos registros; por lo tanto, debemos elegir la secuencia de toda la noche que mejor combina lo que dice el
+  clasificador con esas transiciones.
 
 \item \textbf{Interfaz gráfica.} Aplicación en Streamlit para cargar un
   registro, ver cada canal en cada etapa y comparar el hipnograma
