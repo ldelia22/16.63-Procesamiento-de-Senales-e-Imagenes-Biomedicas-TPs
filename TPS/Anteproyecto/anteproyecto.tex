@@ -219,7 +219,7 @@ y agregar la HRV mejora el acuerdo con los técnicos.
 \subsection{Base de datos}
 
 Usaremos la base de datos \textbf{HMC Sleep Staging Database v1.1} \cite{hmc}
-(opción 2 de la consigna). Contiene 148 PSG de adultos derivados al centro por
+(opción 2 de la consigna). Contiene 151 PSG de adultos derivados al centro por
 distintos trastornos del sueño, registradas con equipos SOMNOmedics y
 electrodos de Ag/AgCl a 256~Hz, en formato EDF.
 Cada registro tiene cuatro canales de EEG (F4, C4, O2 y C3, referidos a
@@ -229,9 +229,9 @@ tiene los cuatro EEG que necesita CSP, el EOG que sirve de referencia
 del artefacto ocular y el ECG para detectar los latidos.
 
 Comenzaremos trabajando con 60 a 80 registros elegidos al azar para reducir el costo computacional,
-y separaremos la totalidad de datos entre entrenamiento (80\,\%) y prueba (20\,\%),
-obligando a que todas las épocas de un paciente quedan del mismo
-lado para que no se mezclen los mismos registros en los datos de testing y de validación.
+y separaremos esos registros entre entrenamiento (80\,\%) y prueba (20\,\%),
+obligando a que todas las épocas de un paciente queden del mismo
+lado, para que un mismo registro no aparezca a la vez en los datos de entrenamiento y de prueba.
 
 \subsection{Metodología}
 
@@ -247,7 +247,7 @@ lado para que no se mezclen los mismos registros en los datos de testing y de va
   Bajos, que es el país donde se tomaron los datos; la frecuencia de corte superior se fijará a partir del espectro
   de la etapa 1. Compararemos un diseño FIR y uno IIR. El IIR necesita un
   orden mucho menor, pero desplaza de forma distinta cada frecuencia y
-  deforma las ondas lentas (que se soluciona aplicandolo dos veces, una
+  deforma las ondas lentas (que se soluciona aplicándolo dos veces, una
   hacia adelante y otra hacia atrás, de modo que se compensen los desfasajes).
 
 \item \textbf{Remoción del artefacto ocular.} Usamos el EOG como copia
@@ -266,7 +266,7 @@ lado para que no se mezclen los mismos registros en los datos de testing y de va
 
 \item \textbf{Segmentación.} Épocas de 30~s, dentro de las cuales se
   supone que la señal no cambia sus propiedades. Con una segmentación
-  adaptativa con un modelo autorregresivo se puede marcar las épocas
+  adaptativa con un modelo autorregresivo se pueden marcar las épocas
   donde eso no se cumple (por ejemplo, por un despertar breve).
 
 \item \textbf{Espectro multitaper.} El periodograma de cada época es muy
@@ -300,12 +300,20 @@ lado para que no se mezclen los mismos registros en los datos de testing y de va
   por separado. CSP \cite{ramoser} busca una suma ponderada de los cuatro
   canales de EEG cuya potencia sea lo más grande posible en un estadio y
   lo más chica posible en otro. Se aplicará a los pares más confundidos
-  (por ejemplo, N1 y REM).
+  (por ejemplo, N1 y REM). En la práctica, CSP calcula un peso para cada
+  canal y arma una señal nueva sumando los cuatro canales multiplicados
+  por esos pesos. Los pesos se eligen con las épocas de entrenamiento para
+  que esa señal tenga mucha energía en uno de los dos estadios y poca en
+  el otro. Después, en cada época se calcula la potencia de esa señal
+  combinada y se la agrega como un dato más para el clasificador: si es
+  alta, la época se parece más a uno de los estadios, y si es baja, al
+  otro. Además, los pesos muestran qué zona del cerebro (frontal, central
+  u occipital) sirve más para distinguir esos dos estadios.
 
 \item \textbf{EOG, EMG y HRV.} Del EOG se toma su energía, que crece con
   los movimientos oculares de REM, y del EMG su amplitud, que cae con la
   atonía. Para la HRV se arma, con los latidos de la etapa 4, la serie de
-  intervalos entre latidos, descartando los latidos ectópicos.
+  intervalos entre latidos, descartando los latidos ectópicos a través del cálculo del periodograma de Lomb.
   En una ventana de 5~min centrada en cada época se mide la potencia en baja frecuencia
   (LF, 0,04--0,15~Hz) y en alta frecuencia (HF, 0,15--0,4~Hz): HF
   refleja la actividad parasimpática y aumenta en sueño profundo,
@@ -315,9 +323,14 @@ lado para que no se mezclen los mismos registros en los datos de testing y de va
   (LDA), que asigna cada época al estadio cuyo perfil de descriptores es
   más parecido. Al ser lineal, el peso de cada descriptor en la decisión
   se puede leer directamente. El clasificador decide cada época por
-  separado, pero el hipnograma es un continuo, y podría ser que asigne épocas
-  que pertenezcan a distintos registros; por lo tanto, debemos elegir la secuencia de toda la noche que mejor combina lo que dice el
-  clasificador con esas transiciones.
+  separado, pero el sueño es un proceso continuo: los estadios duran
+  varios minutos y no todos los cambios de un estadio a otro son igual de
+  probables. Por eso pueden aparecer épocas sueltas mal clasificadas, como
+  una época de REM en medio de N3. Para corregirlas podríamos usar, por
+  ejemplo, modelos ocultos de Markov, que estamos
+  estudiando en la materia Redes Neuronales en Bioingeniería 1. Eligiría la secuencia de estadios de toda la noche que
+  mejor combina lo que dice el clasificador a partir
+  de cuántas veces se pasa de un estadio a otro en los datos de entrenamiento
 
 \item \textbf{Interfaz gráfica.} Aplicación en Streamlit para cargar un
   registro, ver cada canal en cada etapa y comparar el hipnograma
@@ -353,8 +366,7 @@ Sobre los pacientes de prueba, la métrica principal es el $\kappa$ de
 Cohen, comparable con el acuerdo entre técnicos (0,74) y con la red de
 referencia (0,79). Se reportarán también la matriz de confusión y el F1 de cada estadio,
 que combina cuántas épocas del estadio se detectan y cuántas de las
-asignadas son correctas; es necesario porque N1 es poco frecuente y la
-exactitud global puede ser alta aunque N1 se clasifique mal.
+asignadas son correctas.
 
 Para verificar las hipótesis: \textbf{H1}, se
 compara la variación de la potencia por banda entre épocas consecutivas
@@ -364,8 +376,7 @@ vigilia y se mide qué tan bien recupera esa forma cada método;
 \textbf{H3}, se compara el F1 de N1 y REM con y sin los descriptores
 CSP; \textbf{H4}, se verifica que tras la remoción el promedio del EEG
 alrededor de cada latido tienda a cero y se compara el $\kappa$ con y
-sin estas etapas. Las comparaciones se hacen paciente por paciente con la
-prueba de Wilcoxon, que no supone distribución normal.
+sin estas etapas.
 
 % ============================================================
 % BIBLIOGRAFÍA
@@ -383,15 +394,7 @@ prueba de Wilcoxon, que no supone distribución normal.
 \bibitem{prerau} M.~J.~Prerau et al., ``Sleep neurophysiological dynamics through the lens of multitaper spectral analysis,'' \emph{Physiology}, 32(1):60--92, 2017.
 \bibitem{woody} C.~D.~Woody, ``Characterization of an adaptive filter for the analysis of variable latency neuroelectric signals,'' \emph{Med. Biol. Eng.}, 5:539--553, 1967.
 \bibitem{ramoser} H.~Ramoser, J.~Müller-Gerking, G.~Pfurtscheller, ``Optimal spatial filtering of single trial EEG during imagined hand movement,'' \emph{IEEE Trans. Rehabil. Eng.}, 8(4):441--446, 2000.
-\bibitem{widrow} B.~Widrow et al., ``Adaptive noise cancelling: principles and applications,'' \emph{Proc. IEEE}, 63(12):1692--1716, 1975.
-\bibitem{he} P.~He, G.~Wilson, C.~Russell, ``Removal of ocular artifacts from electro-encephalogram by adaptive filtering,'' \emph{Med. Biol. Eng. Comput.}, 42:407--412, 2004.
-\bibitem{pantompkins} J.~Pan, W.~J.~Tompkins, ``A real-time QRS detection algorithm,'' \emph{IEEE Trans. Biomed. Eng.}, 32(3):230--236, 1985.
-\bibitem{donoghue} T.~Donoghue et al., ``Parameterizing neural power spectra into periodic and aperiodic components,'' \emph{Nat. Neurosci.}, 23:1655--1665, 2020.
-\bibitem{molle} M.~Mölle, L.~Marshall, S.~Gais, J.~Born, ``Grouping of spindle activity during slow oscillations in human non-REM sleep,'' \emph{J. Neurosci.}, 22(24):10941--10947, 2002.
-\bibitem{piantoni} G.~Piantoni et al., ``Individual differences in white matter diffusion affect sleep oscillations,'' \emph{J. Neurosci.}, 2013.
-\bibitem{lomb} N.~R.~Lomb, ``Least-squares frequency analysis of unequally spaced data,'' \emph{Astrophys. Space Sci.}, 39:447--462, 1976.
 \bibitem{taskforce} Task Force of the ESC and NASPE, ``Heart rate variability: standards of measurement, physiological interpretation and clinical use,'' \emph{Circulation}, 93(5):1043--1065, 1996.
-\bibitem{rabiner} L.~R.~Rabiner, ``A tutorial on hidden Markov models and selected applications in speech recognition,'' \emph{Proc. IEEE}, 77(2):257--286, 1989.
 \end{thebibliography}
 
 \end{document}
