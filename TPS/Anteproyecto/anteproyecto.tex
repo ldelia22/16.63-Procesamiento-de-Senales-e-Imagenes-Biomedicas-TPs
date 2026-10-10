@@ -337,26 +337,6 @@ lado, para que un mismo registro no aparezca a la vez en los datos de entrenamie
   estimado con el de los técnicos.
 \end{enumerate}
 
-\begin{table}[t]
-\centering\small
-\caption{Correspondencia con los contenidos de la consigna.}
-\vspace{-0.6em}
-\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}Lc@{}}
-\toprule
-Ítem de la consigna & Implementación & Etapa \\
-\midrule
-Método de adquisición & PSG SOMNOmedics, sistema 10-20 referido a mastoides, 256~Hz & Sec.~2.1 \\
-Filtros convencionales y óptimos & Pasa-altos y notch FIR/IIR; Wiener y NLMS & 2, 3 \\
-Detección de QRS y recorte en realizaciones & Pan-Tompkins; promedios por latido y por onda lenta & 4, 7 \\
-Segmentación de señales & Segmentación adaptativa con modelo autorregresivo & 5 \\
-Análisis de ritmos cerebrales & Potencia por banda, husos y ondas lentas & 6, 7 \\
-HRV y periodograma de Lomb & Intervalos entre latidos, ectópicos, LF y HF & 9 \\
-Interfaz gráfica & Aplicación en Streamlit & 11 \\
-Técnicas no vistas en clase & Multitaper, Woody, CSP, modelo oculto de Markov & 6--8, 10 \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
 % ============================================================
 % 3. EVALUACIÓN
 % ============================================================
