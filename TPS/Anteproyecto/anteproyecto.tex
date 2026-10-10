@@ -1,0 +1,422 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+% PAQUETES
+% ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{top=2.2cm, bottom=2.2cm, left=2.2cm, right=2.2cm}
+\usepackage{float}
+\usepackage{enumitem}
+\setlist{nosep, leftmargin=1.5em}
+\usepackage{parskip}
+\setlength{\parindent}{1.25em} % Sangría de primera línea
+\usepackage{indentfirst} % Sangra también el primer párrafo tras cada sección
+\usepackage{caption}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+% Configuración de hyperref (combinando el color azul de enlaces con el estilo sin marcos)
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=black,
+	urlcolor=blue,
+	citecolor=black,
+	pdfborder={0 0 0}
+}
+
+% Renombrar cuadros a Tablas en español
+\addto\captionsspanish{\renewcommand{\tablename}{Tabla}}
+
+% Títulos de sección más compactos
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-3ex \@plus -.5ex \@minus -.2ex}{1.2ex \@plus .2ex}{\normalfont\large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-2.2ex \@plus -.5ex \@minus -.2ex}{0.8ex \@plus .2ex}{\normalfont\normalsize\bfseries}}
+\makeatother
+
+% Entorno thebibliography sin el encabezado automático "Referencias":
+% ya ponemos nuestro propio \section*{Bibliografía} antes de usarlo.
+\makeatletter
+\renewenvironment{thebibliography}[1]
+ {\list{\@biblabel{\@arabic\c@enumiv}}%
+       {\settowidth\labelwidth{\@biblabel{#1}}%
+        \leftmargin\labelwidth
+        \advance\leftmargin\labelsep
+        \itemsep 1.5pt \parsep 0pt
+        \usecounter{enumiv}%
+        \let\p@enumiv\@empty
+        \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+  \sloppy\clubpenalty4000\widowpenalty4000%
+  \sfcode`\.\@m}
+ {\def\@noitemerr
+   {\@latex@warning{Empty `thebibliography' environment}}%
+  \endlist}
+\makeatother
+\captionsetup{
+    font={small,it},
+    labelfont={small,it,bf},
+    justification=centering,
+    singlelinecheck=false
+}
+
+% ============================================================
+% DATOS DEL TRABAJO
+% ============================================================
+\newcommand{\materia}{Procesamiento de Señales e Imágenes Biomédicas}
+\newcommand{\codigoMateria}{16.63}
+\newcommand{\tituloTrabajo}{Anteproyecto}
+\newcommand{\subtituloTrabajo}{Clasificación automática de estadios de sueño a partir de la polisomnografía}
+\newcommand{\integranteUno}{65555 -- Cassano Nieto, Facundo Tomás (\href{mailto:fcassanonieto@itba.edu.ar}{fcassanonieto@itba.edu.ar})}
+\newcommand{\integranteDos}{65414 -- D'Elía, Lucas Valentín (\href{mailto:ldelia@itba.edu.ar}{ldelia@itba.edu.ar})}
+\newcommand{\integranteTres}{65560 -- Ortega, Facundo (\href{mailto:facortega@itba.edu.ar}{facortega@itba.edu.ar})}
+\newcommand{\comision}{BIO}
+\newcommand{\docenteUno}{Tomás, Roberto Sebastián}
+\newcommand{\docenteDos}{Capurro, Lucila}
+\newcommand{\docenteTres}{Reppucci, Victoria}
+\newcommand{\docenteCuatro}{Tassara, Francisco Joaquín}
+\newcommand{\fechaEntrega}{10 de octubre de 2026}
+\newcommand{\logoITBA}{logo_itba.png} % colocar el archivo del logo en esta carpeta con este nombre
+
+\begin{document}
+
+% ============================================================
+% CARÁTULA
+% ============================================================
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    \IfFileExists{\logoITBA}{%
+        \includegraphics[width=0.45\textwidth]{\logoITBA}\par
+        \vspace{0.1cm}
+    }{}
+    {\LARGE Instituto Tecnológico de Buenos Aires\par}
+    \vspace{0.3cm}
+    {\Large \materia\ (\codigoMateria)\par}
+    \vspace{0.3cm}
+    {\large Comisión \comision\par}
+    \vfill
+    {\Huge\bfseries \tituloTrabajo\par}
+    \vspace{0.15cm}
+    {\LARGE \subtituloTrabajo\par}
+    \vfill
+    {\large\bfseries Grupo 2\par}
+    \vspace{0.3cm}
+    {\large \integranteUno \par}
+    {\large \integranteDos \par}
+    {\large \integranteTres \par}
+    \vfill
+    {\large\bfseries Docentes\par}
+    \vspace{0.3cm}
+    {\large \docenteUno \par}
+    {\large \docenteDos \par}
+    {\large \docenteTres \par}
+    {\large \docenteCuatro \par}
+    \vfill
+    {\large \fechaEntrega \par}
+\end{titlepage}
+
+% ============================================================
+% 1. INTRODUCCIÓN
+% ============================================================
+\section{Introducción}
+
+\subsection{Problemática}
+
+La polisomnografía (PSG) es el estudio de referencia para diagnosticar
+trastornos del sueño: durante una noche se registran en simultáneo EEG,
+EOG, EMG de mentón y ECG. Según el
+manual de la American Academy of Sleep Medicine (AASM) \cite{aasm}, el
+registro se divide en épocas de 30~s y a cada una se le asigna uno de
+cinco estadios: vigilia (W), sueño ligero (N1 y N2), sueño profundo (N3)
+o sueño REM. La secuencia de estadios de toda la noche se denomina
+hipnograma.
+
+Hoy esta clasificación la hace un técnico a mano, época por época (unas
+960 por noche), y el resultado depende de quién lo haga. El acuerdo entre dos evaluadores se
+mide con el coeficiente $\kappa$ de Cohen, que vale 1 si coinciden en
+todas las épocas y 0 si coinciden solo lo que se esperaría por azar.
+Entre técnicos de distintos centros se reportó $\kappa = 0{,}76$
+\cite{danker} y entre los técnicos del Haaglanden Medisch Centrum (HMC),
+el hospital que generó la base de datos que usaremos, $\kappa = 0{,}74$
+\cite{alvarez}. N1 es el estadio en el que menos coinciden.
+
+\subsection{Marco teórico}
+
+\textbf{Qué información aporta cada señal.} A medida que el sueño se
+profundiza, el EEG pasa de una actividad rápida y de baja amplitud en
+vigilia (ritmos $\alpha$, 8--13~Hz, y $\beta$, 13--30~Hz) a ondas lentas
+de gran amplitud en N3 (ritmo $\delta$, 0,5--4~Hz). En N2 aparecen
+además los husos de sueño, ráfagas de 11 a 16~Hz que duran entre 0,5 y
+2~s. El sueño REM tiene un EEG parecido al de N1, por lo que se
+reconoce con otras dos señales: los movimientos oculares rápidos, que se
+ven en el EOG, y la pérdida de tono muscular, que se ve en el EMG del
+mentón. El corazón también cambia con el estadio: la variabilidad de la
+frecuencia cardíaca (HRV), es decir, cuánto varía el tiempo entre
+latidos, depende del sistema nervioso autónomo, que pasa a un predominio
+parasimpático en el sueño profundo y se vuelve más simpático en REM
+\cite{trinder}.
+
+\textbf{Artefactos.} Los movimientos de los ojos producen en los
+electrodos frontales ondas lentas y grandes que pueden confundirse con
+sueño profundo, y la actividad del corazón aparece en el EEG como un
+pulso que se repite en cada latido. Ambos ocupan las mismas frecuencias
+que los ritmos de interés, por lo que un pasa-banda no puede quitarlos
+sin quitar también información útil.
+
+\subsection{Estado del arte}
+
+Los métodos de clasificación automática se agrupan en dos familias. La
+primera calcula descriptores elegidos por el diseñador, como la potencia
+del EEG en cada banda de frecuencia, y se los entrega a un
+clasificador; un ejemplo es YASA \cite{yasa}, que con este enfoque logra
+un acuerdo comparable al de los técnicos. La segunda usa redes
+neuronales profundas que reciben la señal cruda y aprenden solas qué
+patrones usar: suelen rendir algo mejor, pero no permiten saber en qué
+se basa cada decisión. El artículo propuesto por la cátedra
+\cite{alvarez} pertenece a esta familia: una red convolucional y
+recurrente que, sobre registros de HMC no usados para entrenarla,
+alcanza $\kappa = 0{,}79$.
+
+Nuestro trabajo pertenece a la primera familia, porque permite explicar
+cada decisión a partir de propiedades medibles de las señales. Además de
+las técnicas vistas en clase, incorporamos tres que no se vieron, cada
+una para resolver un problema concreto: la estimación espectral
+\emph{multitaper} \cite{thomson,prerau}, para obtener espectros menos
+ruidosos de cada época; el promediado de Woody \cite{woody}, para
+estimar la forma de las ondas lentas aunque no estén bien alineadas; y
+los patrones espaciales comunes (CSP) \cite{ramoser}, para combinar los
+cuatro canales de EEG de la forma que mejor separe los estadios que más
+se confunden.
+
+\subsection{Objetivos e hipótesis}
+
+\textbf{Objetivo general.} Desarrollar un algoritmo que clasifique cada
+época de una PSG en uno de los cinco estadios, con decisiones
+explicables a partir de las señales, que alcance un acuerdo con
+los técnicos cercano al que tienen los técnicos entre sí
+($\kappa \approx 0{,}74$), junto con una interfaz gráfica que muestre
+cada etapa del procesamiento.
+
+\textbf{Hipótesis.} \textbf{H1}, el espectro multitaper varía menos que el de
+Welch entre épocas de un mismo estadio; \textbf{H2}, el promediado de
+Woody recupera la forma de la onda lenta con menor error que el promedio
+ordinario y ayuda a separar N2 de N3; \textbf{H3}, los descriptores CSP
+mejoran la clasificación de N1 y REM; \textbf{H4}, quitar los artefactos
+y agregar la HRV mejora el acuerdo con los técnicos.
+
+% ============================================================
+% 2. MATERIALES Y MÉTODOS
+% ============================================================
+\section{Materiales y métodos}
+
+\subsection{Base de datos}
+
+Usaremos la \textbf{HMC Sleep Staging Database v1.1} \cite{hmc}
+(Opción 2 de la consigna): 148 PSG de adultos derivados al centro por
+distintos trastornos del sueño, registradas con equipos SOMNOmedics y
+electrodos de Ag/AgCl a 256~Hz, en formato EDF.
+Cada registro tiene cuatro canales de EEG (F4, C4, O2 y C3, referidos a
+la mastoide del lado opuesto), dos de EOG, EMG de mentón y ECG, y está
+anotado por técnicos según el manual AASM vigente. La elegimos porque
+tiene los cuatro EEG que necesita CSP, el EOG que sirve de referencia
+del artefacto ocular y el ECG para detectar los latidos.
+
+Para acotar el costo computacional trabajaremos con 60 a 80 registros
+elegidos al azar, separados en entrenamiento (80\,\%) y prueba (20\,\%)
+\textbf{por paciente}: todas las épocas de un paciente quedan del mismo
+lado. Si se mezclaran, el algoritmo se evaluaría sobre épocas casi
+iguales a las que vio al entrenar y el resultado sería optimista.
+
+\subsection{Metodología}
+
+Las etapas 1 a 5 preparan la señal, las 6 a 9 calculan descriptores
+de cada época y la 10 clasifica.
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=1.6em, itemsep=6pt, topsep=4pt]
+\item \textbf{Análisis exploratorio.} Espectro de cada canal por
+  estadio y verificación de artefactos: correlación entre EEG frontal y
+  EOG para el ocular, y promedio del EEG alrededor de cada latido para
+  el cardíaco (si aparece una forma repetible, hay artefacto). Decide si
+  se aplican las etapas 3 y 4.
+
+\item \textbf{Filtrado convencional.} Un pasa-altos en 0,5~Hz elimina la
+  deriva lenta de la línea de base (por sudoración o respiración) y un
+  notch en 50~Hz elimina la interferencia de la red eléctrica de Países
+  Bajos; la frecuencia de corte superior se fijará a partir del espectro
+  de la etapa 1. Compararemos un diseño FIR y uno IIR: el IIR necesita un
+  orden mucho menor, pero desplaza de forma distinta cada frecuencia y
+  deforma las ondas lentas. Para evitarlo se lo aplica dos veces, una
+  hacia adelante y otra hacia atrás, de modo que el segundo pasaje
+  compensa el desfase del primero.
+
+\item \textbf{Remoción del artefacto ocular.} Usamos el EOG como copia
+  del artefacto: un filtro adaptativo (NLMS) aprende, muestra a muestra,
+  qué parte del EOG aparece en cada canal de EEG y la resta
+  \cite{widrow,he}. Se usa la diferencia entre los dos canales de EOG,
+  porque en ella los movimientos oculares se refuerzan y la actividad
+  cerebral, que llega igual a ambos, se cancela. El reajuste continuo
+  es necesario porque el EOG cambia mucho durante la noche; se lo
+  comparará con el filtro de Wiener, que calcula una corrección fija.
+
+\item \textbf{Remoción del artefacto cardíaco.} Con el algoritmo de
+  Pan-Tompkins \cite{pantompkins} se detecta cada latido en el ECG. El
+  artefacto tiene la misma forma en cada latido, mientras que el EEG no
+  está sincronizado con el corazón; por eso, al promediar el EEG
+  alrededor de los últimos 30 latidos el EEG se cancela y queda la forma
+  del artefacto, que se resta en cada latido. Los instantes de los
+  latidos se reutilizan para la HRV.
+
+\item \textbf{Segmentación.} Épocas de 30~s, dentro de las cuales se
+  supone que la señal no cambia sus propiedades. La segmentación
+  adaptativa con modelo autorregresivo vista en clase marca las épocas
+  donde eso no se cumple (por ejemplo, por un despertar breve).
+
+\item \textbf{Espectro multitaper.} El periodograma de cada época es muy
+  ruidoso. El método de Welch visto en clase lo suaviza partiendo la
+  época en trozos y promediando sus espectros, pero cada trozo es más
+  corto y se pierde resolución en frecuencia. El método multitaper
+  \cite{thomson,prerau} usa la época completa, la multiplica por varias
+  ventanas distintas e independientes entre sí y promedia los espectros
+  resultantes: reduce el ruido sin acortar la señal. Con épocas de 30~s
+  y 1~Hz de resolución se usan 29 ventanas. De cada espectro se obtiene
+  la potencia absoluta y relativa en cada banda, cocientes entre bandas
+  y la pendiente con que decae el espectro hacia frecuencias altas, que
+  cambia con la profundidad del sueño \cite{donoghue}. 
+
+\item \textbf{Husos y ondas lentas con promediado de Woody.} Los husos se
+  detectan filtrando el EEG central entre 11 y 16~Hz, calculando su
+  envolvente y buscando tramos de 0,5 a 2~s que superen un umbral
+  relativo al propio registro \cite{molle}. Las ondas lentas se detectan
+  en el EEG frontal con el criterio visto en clase \cite{piantoni}:
+  filtrado entre 0,2 y 4~Hz, pico negativo menor a $-60~\mu$V y amplitud
+  pico a pico de al menos 75~$\mu$V. Para estimar la forma típica de las
+  ondas lentas de cada paciente se las promedia, pero el ruido corre el
+  pico detectado de cada una y el promedio de ondas desalineadas resulta
+  más ancho y más chico que la onda real. El método de Woody
+  \cite{woody} corrige esto de forma iterativa: desplaza cada onda
+  hasta que se parezca lo más posible al promedio, recalcula el promedio
+  con las ondas alineadas y repite hasta que los desplazamientos dejan de
+  cambiar. Por época se obtienen la cantidad de husos y de ondas lentas,
+  su amplitud y cuánto se parece cada onda a la forma típica.
+
+\item \textbf{Filtrado espacial CSP.} Hasta acá cada canal se analiza
+  por separado. CSP \cite{ramoser} busca una suma ponderada de los cuatro
+  canales de EEG cuya potencia sea lo más grande posible en un estadio y
+  lo más chica posible en otro. Se aplicará a los pares más confundidos
+  (por ejemplo, N1 y REM). El descriptor es la
+  potencia de la señal combinada, y los pesos de cada canal muestran qué
+  región del cerebro distingue a los dos estadios.
+
+\item \textbf{EOG, EMG y HRV.} Del EOG se toma su energía, que crece con
+  los movimientos oculares de REM, y del EMG su amplitud, que cae con la
+  atonía. Para la HRV se arma, con los latidos de la etapa 4, la serie de
+  intervalos entre latidos, descartando los latidos ectópicos (latidos
+  anómalos, reconocibles porque su forma se parece poco a la del latido
+  promedio). Como estos intervalos no están equiespaciados en el tiempo,
+  su espectro se calcula con el periodograma de Lomb, que trabaja
+  directamente sobre muestras irregulares \cite{lomb}. En una ventana de
+  5~min centrada en cada época se mide la potencia en baja frecuencia
+  (LF, 0,04--0,15~Hz) y en alta frecuencia (HF, 0,15--0,4~Hz): HF
+  refleja la actividad parasimpática y aumenta en sueño profundo,
+  mientras que el cociente LF/HF aumenta en REM \cite{taskforce}.
+  Los descriptores se estandarizan dentro de cada registro.
+
+\item \textbf{Clasificación.} Usaremos análisis discriminante lineal
+  (LDA), que asigna cada época al estadio cuyo perfil de descriptores es
+  más parecido. Al ser lineal, el peso de cada descriptor en la decisión
+  se puede leer directamente. El clasificador decide cada época por
+  separado, pero el hipnograma tiene continuidad y no todas las transiciones son
+  igual de probables. Por eso se cuentan las transiciones en
+  entrenamiento y, con
+  un modelo oculto de Markov y el algoritmo de Viterbi \cite{rabiner}, se
+  elige la secuencia de toda la noche que mejor combina lo que dice el
+  clasificador con esas transiciones; así se corrigen, por ejemplo,
+  épocas de REM aisladas en medio de N3.
+
+\item \textbf{Interfaz gráfica.} Aplicación en Streamlit para cargar un
+  registro, ver cada canal en cada etapa y comparar el hipnograma
+  estimado con el de los técnicos.
+\end{enumerate}
+
+\begin{table}[t]
+\centering\small
+\caption{Correspondencia con los contenidos de la consigna.}
+\vspace{-0.6em}
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}Lc@{}}
+\toprule
+Ítem de la consigna & Implementación & Etapa \\
+\midrule
+Método de adquisición & PSG SOMNOmedics, sistema 10-20 referido a mastoides, 256~Hz & Sec.~2.1 \\
+Filtros convencionales y óptimos & Pasa-altos y notch FIR/IIR; Wiener y NLMS & 2, 3 \\
+Detección de QRS y recorte en realizaciones & Pan-Tompkins; promedios por latido y por onda lenta & 4, 7 \\
+Segmentación de señales & Segmentación adaptativa con modelo autorregresivo & 5 \\
+Análisis de ritmos cerebrales & Potencia por banda, husos y ondas lentas & 6, 7 \\
+HRV y periodograma de Lomb & Intervalos entre latidos, ectópicos, LF y HF & 9 \\
+Interfaz gráfica & Aplicación en Streamlit & 11 \\
+Técnicas no vistas en clase & Multitaper, Woody, CSP, modelo oculto de Markov & 6--8, 10 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================
+% 3. EVALUACIÓN
+% ============================================================
+\section{Evaluación}
+
+Sobre los pacientes de prueba, la métrica principal es el $\kappa$ de
+Cohen, comparable con el acuerdo entre técnicos (0,74) y con la red de
+referencia (0,79). Se reportarán también la matriz de confusión y el F1 de cada estadio,
+que combina cuántas épocas del estadio se detectan y cuántas de las
+asignadas son correctas; es necesario porque N1 es poco frecuente y la
+exactitud global puede ser alta aunque N1 se clasifique mal.
+
+Para verificar las hipótesis: \textbf{H1}, se
+compara la variación de la potencia por banda entre épocas consecutivas
+de un mismo estadio con multitaper y con Welch; \textbf{H2}, se insertan
+ondas lentas de forma conocida y con corrimientos al azar en EEG real de
+vigilia y se mide qué tan bien recupera esa forma cada método;
+\textbf{H3}, se compara el F1 de N1 y REM con y sin los descriptores
+CSP; \textbf{H4}, se verifica que tras la remoción el promedio del EEG
+alrededor de cada latido tienda a cero y se compara el $\kappa$ con y
+sin estas etapas. Las comparaciones se hacen paciente por paciente con la
+prueba de Wilcoxon, que no supone distribución normal.
+
+% ============================================================
+% BIBLIOGRAFÍA
+% ============================================================
+\section*{Bibliografía}
+\footnotesize
+\begin{thebibliography}{99}
+\bibitem{alvarez} D.~Alvarez-Estevez, R.~M.~Rijsman, ``Inter-database validation of a deep learning approach for automatic sleep scoring,'' \emph{PLoS ONE}, 16(8):e0256111, 2021.
+\bibitem{hmc} D.~Alvarez-Estevez, R.~M.~Rijsman, ``Haaglanden Medisch Centrum sleep staging database (v1.1),'' PhysioNet, 2022.
+\bibitem{aasm} R.~B.~Berry et al., \emph{The AASM Manual for the Scoring of Sleep and Associated Events}, v2.4. AASM, 2017.
+\bibitem{danker} H.~Danker-Hopfe et al., ``Interrater reliability for sleep scoring according to the R\&K and the new AASM standard,'' \emph{J. Sleep Res.}, 18(1):74--84, 2009.
+\bibitem{trinder} J.~Trinder et al., ``Autonomic activity during human sleep as a function of time and sleep stage,'' \emph{J. Sleep Res.}, 10(4):253--264, 2001.
+\bibitem{yasa} R.~Vallat, M.~P.~Walker, ``An open-source, high-performance tool for automated sleep staging,'' \emph{eLife}, 10:e70092, 2021.
+\bibitem{thomson} D.~J.~Thomson, ``Spectrum estimation and harmonic analysis,'' \emph{Proc. IEEE}, 70(9):1055--1096, 1982.
+\bibitem{prerau} M.~J.~Prerau et al., ``Sleep neurophysiological dynamics through the lens of multitaper spectral analysis,'' \emph{Physiology}, 32(1):60--92, 2017.
+\bibitem{woody} C.~D.~Woody, ``Characterization of an adaptive filter for the analysis of variable latency neuroelectric signals,'' \emph{Med. Biol. Eng.}, 5:539--553, 1967.
+\bibitem{ramoser} H.~Ramoser, J.~Müller-Gerking, G.~Pfurtscheller, ``Optimal spatial filtering of single trial EEG during imagined hand movement,'' \emph{IEEE Trans. Rehabil. Eng.}, 8(4):441--446, 2000.
+\bibitem{widrow} B.~Widrow et al., ``Adaptive noise cancelling: principles and applications,'' \emph{Proc. IEEE}, 63(12):1692--1716, 1975.
+\bibitem{he} P.~He, G.~Wilson, C.~Russell, ``Removal of ocular artifacts from electro-encephalogram by adaptive filtering,'' \emph{Med. Biol. Eng. Comput.}, 42:407--412, 2004.
+\bibitem{pantompkins} J.~Pan, W.~J.~Tompkins, ``A real-time QRS detection algorithm,'' \emph{IEEE Trans. Biomed. Eng.}, 32(3):230--236, 1985.
+\bibitem{donoghue} T.~Donoghue et al., ``Parameterizing neural power spectra into periodic and aperiodic components,'' \emph{Nat. Neurosci.}, 23:1655--1665, 2020.
+\bibitem{molle} M.~Mölle, L.~Marshall, S.~Gais, J.~Born, ``Grouping of spindle activity during slow oscillations in human non-REM sleep,'' \emph{J. Neurosci.}, 22(24):10941--10947, 2002.
+\bibitem{piantoni} G.~Piantoni et al., ``Individual differences in white matter diffusion affect sleep oscillations,'' \emph{J. Neurosci.}, 2013.
+\bibitem{lomb} N.~R.~Lomb, ``Least-squares frequency analysis of unequally spaced data,'' \emph{Astrophys. Space Sci.}, 39:447--462, 1976.
+\bibitem{taskforce} Task Force of the ESC and NASPE, ``Heart rate variability: standards of measurement, physiological interpretation and clinical use,'' \emph{Circulation}, 93(5):1043--1065, 1996.
+\bibitem{rabiner} L.~R.~Rabiner, ``A tutorial on hidden Markov models and selected applications in speech recognition,'' \emph{Proc. IEEE}, 77(2):257--286, 1989.
+\end{thebibliography}
+
+\end{document}

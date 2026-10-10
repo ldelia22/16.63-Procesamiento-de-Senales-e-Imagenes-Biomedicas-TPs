@@ -1,0 +1,494 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+% PAQUETES
+% ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{top=2.2cm, bottom=2.2cm, left=2.2cm, right=2.2cm}
+\usepackage{float}
+\usepackage{enumitem}
+\setlist{nosep, leftmargin=1.5em}
+\usepackage{parskip}
+\setlength{\parindent}{1.25em} % Sangría de primera línea
+\usepackage{indentfirst} % Sangra también el primer párrafo tras cada sección
+\usepackage{caption}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+% Configuración de hyperref (combinando el color azul de enlaces con el estilo sin marcos)
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=black,
+	urlcolor=blue,
+	citecolor=black,
+	pdfborder={0 0 0}
+}
+
+% Renombrar cuadros a Tablas en español
+\addto\captionsspanish{\renewcommand{\tablename}{Tabla}}
+
+% Títulos de sección más compactos
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-3ex \@plus -.5ex \@minus -.2ex}{1.2ex \@plus .2ex}{\normalfont\large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-2.2ex \@plus -.5ex \@minus -.2ex}{0.8ex \@plus .2ex}{\normalfont\normalsize\bfseries}}
+\makeatother
+
+% Entorno thebibliography sin el encabezado automático "Referencias":
+% ya ponemos nuestro propio \section*{Bibliografía} antes de usarlo.
+\makeatletter
+\renewenvironment{thebibliography}[1]
+ {\list{\@biblabel{\@arabic\c@enumiv}}%
+       {\settowidth\labelwidth{\@biblabel{#1}}%
+        \leftmargin\labelwidth
+        \advance\leftmargin\labelsep
+        \itemsep 1.5pt \parsep 0pt
+        \usecounter{enumiv}%
+        \let\p@enumiv\@empty
+        \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+  \sloppy\clubpenalty4000\widowpenalty4000%
+  \sfcode`\.\@m}
+ {\def\@noitemerr
+   {\@latex@warning{Empty `thebibliography' environment}}%
+  \endlist}
+\makeatother
+\captionsetup{
+    font={small,it},
+    labelfont={small,it,bf},
+    justification=centering,
+    singlelinecheck=false
+}
+
+% ============================================================
+% DATOS DEL TRABAJO
+% ============================================================
+\newcommand{\materia}{Procesamiento de Señales e Imágenes Biomédicas}
+\newcommand{\codigoMateria}{16.63}
+\newcommand{\tituloTrabajo}{Anteproyecto}
+\newcommand{\subtituloTrabajo}{Segmentación y clasificación de lesiones mamarias en ecografía}
+\newcommand{\integranteUno}{65555 -- Cassano Nieto, Facundo Tomás (\href{mailto:fcassanonieto@itba.edu.ar}{fcassanonieto@itba.edu.ar})}
+\newcommand{\integranteDos}{65414 -- D'Elía, Lucas Valentín (\href{mailto:ldelia@itba.edu.ar}{ldelia@itba.edu.ar})}
+\newcommand{\integranteTres}{65560 -- Ortega, Facundo (\href{mailto:facortega@itba.edu.ar}{facortega@itba.edu.ar})}
+\newcommand{\comision}{BIO}
+\newcommand{\docenteUno}{Tomás, Roberto Sebastián}
+\newcommand{\docenteDos}{Capurro, Lucila}
+\newcommand{\docenteTres}{Reppucci, Victoria}
+\newcommand{\docenteCuatro}{Tassara, Francisco Joaquín}
+\newcommand{\fechaEntrega}{10 de octubre de 2026}
+\newcommand{\logoITBA}{logo_itba.png} % colocar el archivo del logo en esta carpeta con este nombre
+
+\begin{document}
+
+% ============================================================
+% CARÁTULA
+% ============================================================
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    \IfFileExists{\logoITBA}{%
+        \includegraphics[width=0.45\textwidth]{\logoITBA}\par
+        \vspace{0.1cm}
+    }{}
+    {\LARGE Instituto Tecnológico de Buenos Aires\par}
+    \vspace{0.3cm}
+    {\Large \materia\ (\codigoMateria)\par}
+    \vspace{0.3cm}
+    {\large Comisión \comision\par}
+    \vfill
+    {\Huge\bfseries \tituloTrabajo\par}
+    \vspace{0.15cm}
+    {\LARGE \subtituloTrabajo\par}
+    \vfill
+    {\large\bfseries Grupo 2\par}
+    \vspace{0.3cm}
+    {\large \integranteUno \par}
+    {\large \integranteDos \par}
+    {\large \integranteTres \par}
+    \vfill
+    {\large\bfseries Docentes\par}
+    \vspace{0.3cm}
+    {\large \docenteUno \par}
+    {\large \docenteDos \par}
+    {\large \docenteTres \par}
+    {\large \docenteCuatro \par}
+    \vfill
+    {\large \fechaEntrega \par}
+\end{titlepage}
+
+% ============================================================
+% 1. INTRODUCCIÓN
+% ============================================================
+\section{Introducción}
+
+\subsection{Problemática}
+
+La ecografía en modo B es el estudio de primera línea para caracterizar
+nódulos mamarios palpables y para estudiar pacientes con mamas densas.
+El radiólogo describe cada lesión con el léxico BI-RADS (\emph{Breast
+Imaging Reporting and Data System}) del American College of Radiology
+\cite{acr}, que considera su forma, orientación, margen, ecogenicidad y
+rasgos acústicos posteriores, y la asigna a una categoría. La categoría
+3 corresponde a una probabilidad de malignidad de hasta 2\,\% y se
+indica seguimiento; las categorías 4 y 5 llevan a biopsia.
+
+Hoy esta evaluación es visual y depende de quién haga el estudio. Sin
+embargo, los criterios ecográficos de malignidad descritos por Stavros
+et al. \cite{stavros} son en su mayoría geométricos o de textura: forma
+irregular, orientación ``más alta que ancha'' (el eje perpendicular a la
+piel mayor que el paralelo), márgenes angulares o espiculados, sombra
+acústica posterior y ecotextura heterogénea. Cada uno puede traducirse
+en una magnitud que se mide sobre la imagen una vez segmentada la
+lesión.
+
+\subsection{Marco teórico}
+
+\textbf{Ruido speckle.} La ecografía presenta un ruido multiplicativo de
+aspecto granular, el speckle, producido por la interferencia de las
+ondas que reflejan muchos dispersores pequeños. Como multiplica a la
+imagen en lugar de sumarse, los filtros pensados para ruido aditivo no
+son los más adecuados, y como cambia la textura de la imagen, puede
+confundirse con la textura del tejido. Cuando está completamente
+desarrollado, es decir, cuando cada punto de la imagen recibe ecos de
+muchos dispersores, su amplitud sigue una distribución de Rayleigh. En
+ese caso, el cociente entre media y desvío de una zona homogénea vale
+1,91 sin importar su brillo \cite{wagner}. Usaremos este valor como
+referencia para comprobar si el speckle de las imágenes se comporta como
+supone el modelo. También permite medir cuánto speckle quita un filtro,
+ya que el cociente aumenta a medida que la zona queda más uniforme.
+
+\textbf{Bordes débiles.} Las lesiones suelen ser hipoecoicas (más
+oscuras que el tejido vecino), pero sus bordes son difusos y pueden
+quedar parcialmente ocultos por sombras acústicas. Los detectores de
+bordes vistos en clase (Sobel, Canny) responden también al speckle. El
+método de Chan-Vese \cite{chanvese}, también visto en clase, funciona
+aunque el borde no sea marcado, siempre que el interior y el exterior
+sean distintos, pero supone que cada región tiene una única intensidad
+media en toda la imagen.
+
+\textbf{Textura.} La matriz de co-ocurrencia de niveles de gris (GLCM)
+describe con qué frecuencia aparecen juntos pares de niveles de gris a
+una distancia y dirección dadas, y de ella se calculan los rasgos de
+Haralick \cite{haralick,gonzalez}. Sus valores dependen del nivel de
+gris absoluto, que varía con la ganancia configurada en cada ecógrafo.
+
+\subsection{Estado del arte}
+
+Los primeros sistemas de diagnóstico asistido siguen los mismos pasos
+que el radiólogo. Delimitan la lesión, miden propiedades parecidas a
+las del léxico BI-RADS y se las entregan a un clasificador, que le
+asigna a cada lesión una probabilidad de malignidad. Según el umbral a
+partir del cual se la considera maligna cambian la sensibilidad
+(fracción de malignas detectadas) y la especificidad (fracción de
+benignas reconocidas como tales). La curva ROC muestra ese compromiso
+para todos los umbrales, y el área bajo ella (AUC) vale 1 si el
+clasificador separa perfectamente ambas clases y 0,5 si no es mejor que
+el azar. Con este enfoque, Chen et al. \cite{chen} obtienen un AUC de
+0,95 en 271 lesiones con siete descriptores morfológicos, y Byra et al.
+\cite{byra} de 0,90 en 107 lesiones usando solo morfología. Es decir, la
+forma de la lesión ya alcanza para separar bien benignas y malignas.
+
+Los trabajos más recientes usan redes neuronales convolucionales que
+reciben la imagen completa y aprenden solas qué patrones usar. Byra et
+al. \cite{byra19}, por ejemplo, obtienen un AUC de 0,89 con 882
+imágenes, un valor similar al de los descriptores morfológicos, pero la
+red no permite saber en qué se basa cada decisión. Además, muchos de
+estos trabajos se evalúan sobre BUSI, la base pública más usada, que
+tiene alrededor de un 19\,\% de imágenes duplicadas, algunas con
+etiquetas contradictorias \cite{pawlowska23}. Si una misma imagen
+queda en entrenamiento y en prueba, el resultado es optimista.
+
+Por eso seguimos el primer enfoque, que permite explicar cada decisión
+a partir de propiedades medibles de la imagen. Como los valores de AUC
+citados provienen de bases chicas y de un solo equipo, no buscamos
+superarlos, y en cambio medimos cuánto aporta cada técnica. A las vistas
+en clase sumamos tres que no se vieron, una por cada dificultad descrita
+en el marco teórico. Para el speckle usamos la difusión anisótropa para
+reducción de speckle (SRAD) \cite{yu}, que lo suaviza sin borrar los
+bordes. Para los bordes débiles usamos contornos activos con
+estadísticos locales \cite{lankton}, que segmentan aunque la intensidad
+del fondo no sea uniforme. Para la textura usamos patrones binarios
+locales (LBP) \cite{ojala}, que no dependen de la ganancia del equipo.
+
+\subsection{Objetivos e hipótesis}
+
+\textbf{Objetivo general.} Desarrollar un algoritmo que segmente la
+lesión en una ecografía mamaria, mida descriptores de forma, intensidad
+y textura y estime si es benigna o maligna, con decisiones explicables a
+partir de la imagen; cuantificar cuánto mejora cada técnica incorporada
+a su equivalente visto en clase, y desarrollar una interfaz gráfica que
+muestre cada etapa del procesamiento.
+
+\textbf{Hipótesis.} \textbf{H1}, reducir el speckle con SRAD mejora la
+segmentación respecto de los filtros de mediana y de Wiener; \textbf{H2},
+los contornos activos con estadísticos locales segmentan mejor que
+Chan-Vese, sobre todo en lesiones con sombra acústica posterior;
+\textbf{H3}, agregar descriptores LBP a los de GLCM mejora la
+clasificación entre benignas y malignas; \textbf{H4}, el desempeño del
+algoritmo se mantiene con niveles moderados de compresión JPEG.
+
+% ============================================================
+% 2. MATERIALES Y MÉTODOS
+% ============================================================
+\section{Materiales y métodos}
+
+\subsection{Base de datos}
+
+Usaremos la base \textbf{BrEaST} (\emph{Breast-Lesions-USG})
+\cite{breast,pawlowska24}, publicada en The Cancer Imaging Archive: 256
+ecografías, una por paciente, de mujeres de 18 a 87 años atendidas en
+Polonia entre 2019 y 2022, adquiridas con ecógrafos Hitachi, Esaote,
+Samsung y Philips con transductores lineales, en formato PNG en escala de
+grises y con licencia CC BY 4.0. Contiene 154 lesiones benignas, 98
+malignas y 4 imágenes sin lesión. Cada lesión tiene diagnóstico
+confirmado por biopsia (77\,\%) o por un seguimiento mayor a 2 años,
+máscara dibujada a mano por radiólogos, descriptores BI-RADS (categoría,
+forma, margen, ecogenicidad y rasgos posteriores) y el tamaño del píxel.
+La elegimos por la calidad de su anotación y porque, a diferencia de
+BUSI, no tiene imágenes duplicadas.
+
+La unidad de análisis es la lesión principal de cada una de las 252
+imágenes con lesión; las 4 imágenes sin lesión se usan para verificar
+que el algoritmo no proponga una lesión inexistente. Las imágenes se
+separan en entrenamiento (70\,\%) y prueba (30\,\%), manteniendo la
+proporción de benignas y malignas. Como hay una sola imagen por
+paciente, ninguna paciente aparece en ambos conjuntos. Todo lo que se
+ajusta con datos (parámetros de los filtros y de la segmentación,
+selección de descriptores y clasificador) se ajusta solo con el
+conjunto de entrenamiento, mediante validación cruzada, y el de prueba
+se usa una única vez, al final. Si se lo usara para ajustar, el
+resultado sería optimista. El algoritmo final queda con parámetros
+fijos, para poder aplicarlo a los casos incógnita de la cátedra.
+
+\subsection{Metodología}
+
+Las etapas 1 a 4 preparan la imagen, la 5 y la 6 segmentan la lesión,
+la 7 calcula sus descriptores y la 8 la clasifica.
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=1.6em, itemsep=6pt, topsep=4pt]
+\item \textbf{Análisis exploratorio.} Se relevan los tamaños de las
+  imágenes, el tamaño del píxel y la presencia de marcas sobreimpresas
+  (calibres de medición, texto). Se calculan los histogramas de la
+  lesión y del tejido vecino, y el cociente entre media y desvío en
+  regiones homogéneas: si se acerca a 1,91, el speckle está
+  completamente desarrollado; si se aleja, probablemente se deba a que
+  el ecógrafo ya comprimió y procesó la imagen antes de exportarla. En
+  ese caso SRAD sigue siendo aplicable, porque estima el speckle de
+  referencia en la propia imagen. Define los criterios de limpieza y los
+  valores iniciales de los parámetros de las etapas siguientes.
+
+\item \textbf{Preprocesamiento.} Se normaliza la intensidad entre 0 y 1.
+  Las marcas sobreimpresas se detectan por su intensidad o color y se
+  rellenan interpolando los píxeles vecinos; si una marca cae sobre la
+  lesión, la imagen se excluye. Luego se recorta una región de interés
+  (ROI) alrededor de la lesión, con un margen de tejido vecino, que hace
+  falta para medir la ecogenicidad relativa y los rasgos posteriores. La
+  ROI se propone de forma automática: sobre la imagen suavizada se aplica
+  el umbral de Otsu \cite{otsu}, se etiquetan las regiones oscuras
+  conexas y se elige la más probable según su intensidad media, su
+  cercanía al centro horizontal, su área y que no toque los bordes de la
+  imagen. En la interfaz el usuario puede corregirla, como haría un
+  radiólogo al ubicar los calibres.
+
+\item \textbf{Compresión y descompresión.} Las imágenes clínicas se
+  almacenan y transmiten comprimidas (sistemas de archivo de imágenes,
+  telemedicina). Para medir cuánto afecta eso al algoritmo, cada imagen
+  se comprime con JPEG a distintos niveles de calidad y se descomprime.
+  La distorsión se mide con la relación señal a ruido de pico (PSNR),
+  que compara el máximo nivel de gris con el error cuadrático medio
+  entre la imagen original y la descomprimida, y con el índice de
+  similitud estructural (SSIM) \cite{wang}, que compara luminancia,
+  contraste y estructura local y se parece más a cómo percibimos la
+  calidad. Todo el algoritmo se repite sobre las versiones comprimidas
+  (H4).
+
+\item \textbf{Reducción de speckle con SRAD.} En clase se vieron el
+  filtro de mediana y el de Wiener. La versión local de Wiener, el
+  filtro de Lee \cite{lee}, calcula la media y la varianza de una
+  ventana alrededor de cada píxel: si esa varianza se explica por el
+  speckle, la zona es homogénea y el píxel se reemplaza por la media; si
+  es mucho mayor, hay un borde y el píxel se conserva. El problema es
+  que la ventana es fija y cuadrada, y cerca de un borde mezcla píxeles
+  de ambos lados. SRAD \cite{yu} usa el mismo criterio, pero suaviza la
+  imagen de forma iterativa: en cada paso, cada píxel intercambia
+  intensidad con sus vecinos en una cantidad que depende de cuánto se
+  parece su variación local, calculada a partir del gradiente y el
+  laplaciano, a la del speckle, estimada en una región homogénea. Donde
+  la variación se explica por el speckle la imagen se suaviza, y donde
+  es mucho mayor hay un borde y el suavizado se detiene. Así el
+  suavizado sigue la forma de los bordes en lugar de una ventana fija.
+  Se implementa con diferencias finitas, con un paso temporal de a lo
+  sumo $1/4$ para que la iteración no diverja, y luego se ecualiza el
+  histograma para mejorar el contraste. Para elegir el filtro se miden
+  el cociente entre media y desvío en regiones homogéneas (cuanto mayor,
+  menos speckle queda), el contraste
+  entre lesión y fondo y, como criterio final, la calidad de la
+  segmentación que resulta de cada uno.
+
+\item \textbf{Segmentación con contornos activos locales.} Como
+  referencia se aplican los métodos vistos en clase: el umbral de Otsu,
+  que elige el nivel de gris que mejor separa dos clases y toma la
+  oscura como lesión; el crecimiento de regiones desde una semilla en el
+  centro de la ROI; k-means y Chan-Vese. Chan-Vese busca el contorno que
+  hace que los píxeles de adentro se parezcan lo más posible a su media,
+  y los de afuera a la suya, penalizando además los contornos largos e
+  irregulares. Esto supone que cada región tiene una única intensidad
+  media, lo que en ecografía no se cumple: la intensidad del tejido cae
+  con la profundidad y las sombras acústicas oscurecen zonas que no son
+  lesión, de modo que una media global de ``afuera'' no representa al
+  tejido que rodea cada parte del borde. Los contornos activos con
+  estadísticos locales \cite{lankton} mantienen la misma idea, pero
+  comparan cada punto del contorno solo con un disco de radio $r$ a su
+  alrededor, calculando las medias de adentro y de afuera dentro de ese
+  disco. Si el disco abarca toda la imagen se recupera Chan-Vese; con un
+  radio menor, alcanza con que la lesión sea más oscura que el tejido
+  inmediatamente vecino, lo que sí se cumple aunque el fondo varíe. El
+  contorno parte del resultado de Otsu y evoluciona hasta minimizar esa
+  energía; el radio y el peso de la longitud se ajustan con el conjunto
+  de entrenamiento.
+
+\item \textbf{Morfología y etiquetado.} Una apertura con un elemento
+  estructurante en forma de disco elimina las islas pequeñas debidas al
+  speckle, y un cierre une los huecos del borde; luego se rellenan los
+  agujeros interiores. Se etiquetan las regiones conexas y se conserva la
+  que contiene la semilla. El resultado es la máscara final de la lesión
+  y su caja contenedora.
+
+\item \textbf{Descriptores de forma, intensidad y textura.} Los de
+  \emph{forma} siguen el léxico BI-RADS: la circularidad $4\pi A/P^2$
+  ($A$ es el área y $P$ el perímetro; vale 1 en un círculo) y la solidez
+  (área de la lesión sobre la de su envolvente convexa, que baja con las
+  concavidades) describen si es oval o irregular; el cociente entre el
+  alto y el ancho de la caja contenedora mide la orientación (mayor a 1
+  es ``más alta que ancha''); el desvío de la distancia de cada punto del
+  contorno al centroide, normalizado por la distancia máxima, crece con
+  márgenes angulares o espiculados; y el eje mayor en milímetros da el
+  tamaño. Los de \emph{intensidad} son la ecogenicidad relativa (media de
+  la lesión sobre la de un anillo de tejido vecino) y el índice acústico
+  posterior (media de la región debajo de la lesión sobre la de las
+  regiones laterales a la misma profundidad: menor a 1 indica sombra y
+  mayor a 1, refuerzo). Para la \emph{textura} se calcula la GLCM dentro
+  de la lesión, promediada en las cuatro direcciones para que no dependa
+  de la orientación, y de ella los rasgos de Haralick \cite{haralick}:
+  energía, entropía, contraste, homogeneidad, correlación,
+  \emph{cluster shade} y \emph{cluster prominence}. Como la GLCM depende
+  del nivel de gris absoluto, se agrega LBP \cite{ojala}: cada píxel se
+  compara con 8 vecinos ubicados sobre un círculo, cada vecino mayor o
+  igual al centro aporta un 1 y cada vecino menor un 0, y el código
+  binario resultante describe el patrón local (borde, esquina, zona
+  plana). Como solo usa el signo de las diferencias, no cambia con la
+  ganancia ni el brillo; con la versión invariante a la rotación quedan
+  10 códigos posibles, y el descriptor es el histograma de códigos dentro
+  de la lesión, calculado para dos radios. La GLCM mide qué niveles de
+  gris aparecen juntos y LBP qué patrones locales aparecen, por lo que
+  son complementarios. Los descriptores se estandarizan con la media y
+  el desvío del conjunto de entrenamiento. Como hay unas 69 lesiones
+  malignas en entrenamiento y se recomiendan unos 10 casos de la clase
+  menos frecuente por descriptor, se seleccionan unos 7, dentro de la
+  validación cruzada.
+
+\item \textbf{Clasificación.} Usaremos análisis discriminante lineal
+  (LDA), que supone que los descriptores de cada clase siguen una
+  distribución gaussiana con la misma covarianza. Con esa suposición, la
+  regla que asigna cada lesión a la clase más probable es lineal, y el
+  peso de cada descriptor en la decisión se puede leer directamente. Su
+  salida es la probabilidad de malignidad de cada lesión.
+
+\item \textbf{Interfaz gráfica.} Aplicación en Streamlit para cargar una
+  imagen, ver y corregir la ROI propuesta, ver el resultado de cada
+  etapa (original, filtrada, máscara y contorno superpuesto) y consultar
+  los descriptores y la probabilidad de malignidad.
+\end{enumerate}
+
+\begin{table}[t]
+\centering\small
+\caption{Correspondencia con los contenidos de la consigna.}
+\vspace{-0.6em}
+\begin{tabularx}{\textwidth}{@{}p{0.34\textwidth}Lc@{}}
+\toprule
+Ítem de la consigna & Implementación & Etapa \\
+\midrule
+Contextualización de las imágenes y la base & Ecografía modo B, speckle, equipos, diagnóstico de referencia & Sec.~2.1, 1 \\
+Mejoramiento de imágenes & Mediana, Wiener y SRAD; ecualización de histograma & 4 \\
+Compresión y descompresión & JPEG a distintas calidades; PSNR y SSIM & 3 \\
+Segmentación de imágenes & Otsu, crecimiento de regiones, k-means, Chan-Vese y contornos activos locales; morfología y etiquetado & 2, 5, 6 \\
+Análisis de texturas & GLCM y rasgos de Haralick; LBP & 7 \\
+Resultados y significancia estadística & Contornos superpuestos, métricas de segmentación y clasificación, pruebas estadísticas & Sec.~3 \\
+Interfaz gráfica & Aplicación en Streamlit & 9 \\
+Técnicas no vistas en clase & SRAD, contornos activos locales, LBP & 4, 5, 7 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================
+% 3. EVALUACIÓN
+% ============================================================
+\section{Evaluación}
+
+Todo se mide sobre las imágenes de prueba. La segmentación se compara
+con la máscara del radiólogo mediante el coeficiente de Dice, que vale 1
+si las máscaras coinciden y 0 si no se superponen, y la distancia de
+Hausdorff, que mide cuánto se aleja el peor tramo del contorno; se usa
+su percentil 95 para que no la domine un único píxel aislado. La
+clasificación se mide con el AUC, que indica qué tan bien se ordenan las
+lesiones malignas por encima de las benignas sin depender de un umbral,
+con un intervalo de confianza del 95\,\% obtenido por remuestreo
+(\emph{bootstrap}). Se reportan además la sensibilidad y la
+especificidad en dos umbrales: el que maximiza su suma y el que asegura
+una sensibilidad de al menos 98\,\%. Este último se relaciona con la
+categoría BI-RADS 3, que admite hasta un 2\,\% de malignidad, e indica
+cuántas biopsias de lesiones benignas podrían evitarse sin dejar de
+detectar cánceres.
+
+Para verificar las hipótesis: \textbf{H1}, se compara el Dice obtenido
+sin filtrar y con mediana, Wiener y SRAD, manteniendo fijo el método de
+segmentación; \textbf{H2}, se compara el Dice de los contornos activos
+locales con el de Chan-Vese y los demás métodos de clase, en todas las
+lesiones y por separado en las que tienen sombra acústica posterior
+según la anotación de la base; \textbf{H3}, se compara el AUC con
+descriptores GLCM solos y con GLCM y LBP, por remuestreo pareado sobre
+las mismas lesiones; \textbf{H4}, se grafican PSNR, SSIM, Dice y AUC en
+función de la calidad JPEG. Las comparaciones de Dice se hacen imagen
+por imagen con la prueba de Wilcoxon, que no supone distribución normal.
+Por último, para verificar que los descriptores miden lo que dicen
+medir, se compara cada descriptor de forma entre las categorías BI-RADS
+anotadas por los radiólogos (por ejemplo, la solidez entre lesiones
+ovales e irregulares) con la prueba U de Mann-Whitney.
+
+% ============================================================
+% BIBLIOGRAFÍA
+% ============================================================
+\section*{Bibliografía}
+\footnotesize
+\begin{thebibliography}{99}
+\bibitem{acr} American College of Radiology, \emph{ACR BI-RADS Atlas}, 5.ª ed. ACR, 2013.
+\bibitem{stavros} A.~T.~Stavros et al., ``Solid breast nodules: use of sonography to distinguish between benign and malignant lesions,'' \emph{Radiology}, 196(1):123--134, 1995.
+\bibitem{wagner} R.~F.~Wagner et al., ``Statistics of speckle in ultrasound B-scans,'' \emph{IEEE Trans. Sonics Ultrason.}, 30(3):156--163, 1983.
+\bibitem{chanvese} T.~F.~Chan, L.~A.~Vese, ``Active contours without edges,'' \emph{IEEE Trans. Image Process.}, 10(2):266--277, 2001.
+\bibitem{haralick} R.~M.~Haralick, K.~Shanmugam, I.~Dinstein, ``Textural features for image classification,'' \emph{IEEE Trans. Syst. Man Cybern.}, 3(6):610--621, 1973.
+\bibitem{gonzalez} R.~C.~Gonzalez, R.~E.~Woods, \emph{Digital Image Processing}, 4.ª ed. Pearson, 2018.
+\bibitem{chen} C.~M.~Chen et al., ``Breast lesions on sonograms: computer-aided diagnosis with nearly setting-independent features and artificial neural networks,'' \emph{Radiology}, 226(2):504--514, 2003.
+\bibitem{byra} M.~Byra et al., ``Added value of morphological features to breast lesion diagnosis in ultrasound,'' arXiv:1706.01855, 2017.
+\bibitem{byra19} M.~Byra et al., ``Breast mass classification in sonography with transfer learning using a deep convolutional neural network and color conversion,'' \emph{Med. Phys.}, 46(2):746--755, 2019.
+\bibitem{pawlowska23} A.~Pawłowska, P.~Karwat, N.~Żołek, ``Letter to the Editor. Re: `Dataset of breast ultrasound images','' \emph{Data Brief}, 2023.
+\bibitem{yu} Y.~Yu, S.~T.~Acton, ``Speckle reducing anisotropic diffusion,'' \emph{IEEE Trans. Image Process.}, 11(11):1260--1270, 2002.
+\bibitem{lankton} S.~Lankton, A.~Tannenbaum, ``Localizing region-based active contours,'' \emph{IEEE Trans. Image Process.}, 17(11):2029--2039, 2008.
+\bibitem{ojala} T.~Ojala, M.~Pietikäinen, T.~Mäenpää, ``Multiresolution gray-scale and rotation invariant texture classification with local binary patterns,'' \emph{IEEE Trans. Pattern Anal. Mach. Intell.}, 24(7):971--987, 2002.
+\bibitem{breast} ``Breast-Lesions-USG (BrEaST),'' The Cancer Imaging Archive, \href{https://doi.org/10.7937/9WKK-Q141}{doi:10.7937/9WKK-Q141}.
+\bibitem{pawlowska24} A.~Pawłowska et al., ``Curated benchmark dataset for ultrasound based breast lesion analysis,'' \emph{Sci. Data}, 11:148, 2024.
+\bibitem{otsu} N.~Otsu, ``A threshold selection method from gray-level histograms,'' \emph{IEEE Trans. Syst. Man Cybern.}, 9(1):62--66, 1979.
+\bibitem{wang} Z.~Wang, A.~C.~Bovik, H.~R.~Sheikh, E.~P.~Simoncelli, ``Image quality assessment: from error visibility to structural similarity,'' \emph{IEEE Trans. Image Process.}, 13(4):600--612, 2004.
+\bibitem{lee} J.~S.~Lee, ``Digital image enhancement and noise filtering by use of local statistics,'' \emph{IEEE Trans. Pattern Anal. Mach. Intell.}, 2(2):165--168, 1980.
+\end{thebibliography}
+
+\end{document}
